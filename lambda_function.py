@@ -3,14 +3,14 @@ import json
 import os
 import requests
 
-# 環境変数からAPIキーを取得
+# 環境変数からAPIキーを取得 
 MERAKI_API_KEY = os.environ['MERAKI_API_KEY']
 SLACK_BOT_TOKEN = os.environ['SLACK_BOT_TOKEN']
 
 # Meraki APIのベースURL
 MERAKI_BASE_URL = 'https://api.meraki.com/api/v1'
 
-# SlackのポストメッセージAPIエンドポイント
+# SlackのポストメッセージAPIエンドポイント ★まだわからない
 SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage'
 
 def lambda_handler(event, context):
