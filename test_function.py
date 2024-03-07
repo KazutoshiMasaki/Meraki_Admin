@@ -4,7 +4,7 @@ http = urllib3.PoolManager()
 
 
 def lambda_handler(event, context):
-    url = "https://hooks.slack.com/services/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"
+    url = "XXX"
     msg = {
         "channel": "#team-nw開発lab",
         "username": "",
