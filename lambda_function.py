@@ -9,7 +9,7 @@ SLACK_BOT_TOKEN = os.environ['SLACK_BOT_TOKEN']
 # Meraki APIのベースURL
 MERAKI_BASE_URL = 'https://api.meraki.com/api/v1'
 
-# SlackのポストメッセージAPIエンドポイント ★まだわからない
+# SlackのポストメッセージAPIエンドポイント 
 SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage'
 
 def lambda_handler(event, context):
