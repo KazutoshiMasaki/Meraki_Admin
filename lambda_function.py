@@ -2,73 +2,57 @@ import json
 import os
 import requests
 
-# 環境変数からAPIキーを取得 
-MERAKI_API_KEY = os.environ['MERAKI_API_KEY']
-SLACK_BOT_TOKEN = os.environ['SLACK_BOT_TOKEN']
+# 環境変数から設定を読み込む
+meraki_api_key = os.environ['MERAKI_API_KEY']
+slack_bot_token = os.environ['SLACK_BOT_TOKEN']
+organization_id = os.environ['MERAKI_ORGANIZATION_ID']
+slack_channel_id = os.environ['SLACK_CHANNEL_ID']
 
-# Meraki APIのベースURL
-MERAKI_BASE_URL = 'https://api.meraki.com/api/v1'
+def update_meraki_admin_permission(admin_id, name, permission):
+    url = f"https://api.meraki.com/api/v1/organizations/{organization_id}/admins/{admin_id}"
+    headers = {
+        'X-Cisco-Meraki-API-Key': meraki_api_key,
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        'name': name,
+        'orgAccess': permission  # 例: 'full', 'read-only', 'none' など
+    }
+    response = requests.put(url, headers=headers, json=payload)
+    return response.status_code == 200
 
-# SlackのポストメッセージAPIエンドポイント 
-SLACK_POST_MESSAGE_URL = 'https://slack.com/api/chat.postMessage'
+def post_message_to_slack(message):
+    url = "https://slack.com/api/chat.postMessage"
+    headers = {
+        'Authorization': f'Bearer {slack_bot_token}',
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        'channel': slack_channel_id,
+        'text': message
+    }
+    response = requests.post(url, headers=headers, json=payload)
+    return response.status_code == 200
 
 def lambda_handler(event, context):
-    # Slackのイベントを解析する
-    slack_event = json.loads(event['body'])
+    # Slackからのイベントをパース
+    body = json.loads(event['body'])
+    admin_id = body['admin_id']  # Slackワークフローから送信される想定の管理者ID
+    name = body['name']  # Slackワークフローから送信される想定の名前
+    permission = body['permission']  # Slackワークフローから送信される想定の権限
     
-    # 仮にオーガニゼーションIDと権限レベルを固定で設定しています。
-    # 本番環境では、これらの値を動的に扱う必要があります。
-    organization_id = 'your-organization-id'
-    admin_id = slack_event['user_id']
-    desired_privilege = slack_event['text']  # "full" または "readonly"
-
-    # Meraki APIを呼び出して権限を変更する
-    meraki_response = change_meraki_privilege(organization_id, admin_id, desired_privilege)
-    
-    # Slackに通知を送る
-    slack_response = post_to_slack(slack_event['channel'], meraki_response)
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps(slack_response)
-    }
-
-def change_meraki_privilege(organization_id, admin_id, privilege):
-    # MerakiのAPIエンドポイントに対してPUTリクエストを実行する
-    url = f'{MERAKI_BASE_URL}/organizations/{organization_id}/admins/{admin_id}'
-    headers = {
-        'X-Cisco-Meraki-API-Key': MERAKI_API_KEY,
-        'Content-Type': 'application/json'
-    }
-    # Meraki APIによっては、権限レベルを設定するための正確なデータ構造が異なる場合があるため、
-    # 公式のAPIドキュメントを確認して適切なデータ構造を用いる必要があります。
-    data = {
-        'orgAccess': privilege
-    }
-    response = requests.put(url, headers=headers, json=data)
-    return response.json()
-
-def post_to_slack(channel, message):
-    # Slack APIを使用してメッセージをチャンネルに送信する
-    headers = {
-        'Authorization': f'Bearer {SLACK_BOT_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    data = {
-        'channel': channel,
-        'text': f'Meraki privilege change response: {message}'
-    }
-    response = requests.post(SLACK_POST_MESSAGE_URL, headers=headers, json=data)
-    return response.json()
-
-# Lambda関数をローカルでテストするためのコード
-if __name__ == "__main__":
-    fake_event = {
-        'body': json.dumps({
-            'user_id': 'example_admin_id',
-            'channel': 'channel_id',
-            'text': 'full'  # 権限変更の例
-        })
-    }
-    result = lambda_handler(fake_event, None)
-    print(result)
+    # Meraki APIを使用してAdmin権限を変更
+    if update_meraki_admin_permission(admin_id, name, permission):
+        message = f"Admin {name}'s permission updated to {permission}."
+        post_message_to_slack(message)
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'message': 'Permission update successful'})
+        }
+    else:
+        message = f"Failed to update Admin {name}'s permission."
+        post_message_to_slack(message)
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'message': 'Permission update failed'})
+        }
